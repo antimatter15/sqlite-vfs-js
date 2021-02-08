@@ -1,0 +1,17 @@
+[
+  "vfsOpen",
+  "vfsDelete",
+  "vfsAccess",
+  "vfsFullPathname",
+  "vfsClose",
+  "vfsRead",
+  "vfsWrite",
+  "vfsTruncate",
+  "vfsSync",
+  "vfsFileSize",
+  "vfsLock",
+  "vfsUnlock",
+  "vfsCheckReservedLock",
+  "vfsFileControl",
+  "vfsRandomness"
+]
