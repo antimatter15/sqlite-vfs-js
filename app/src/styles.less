@@ -1,0 +1,43 @@
+body {
+    font-family: sans-serif;
+}
+
+.main {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.error {
+    border: 5px solid red;
+    color: red;
+    padding: 10px 20px;
+}
+
+.CodeMirror {
+    border-bottom: 1px solid #dddddd;
+    height: 150px;
+}
+
+.output {
+    flex: 1;
+    overflow: auto;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+td,
+th {
+    border: 1px solid #ddd;
+    padding: 8px;
+    white-space: pre-wrap;
+}
+
+th {
+    position: sticky;
+    top: 0;
+    background: #673ab7;
+    color: white;
+}

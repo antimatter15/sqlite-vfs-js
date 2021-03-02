@@ -3,3 +3,7 @@ build
 cache
 sqlite
 *.db
+node_modules
+.parcel-cache
+dist
+b2cors.json

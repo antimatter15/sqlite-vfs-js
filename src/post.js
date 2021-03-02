@@ -38,6 +38,7 @@ Module.SQLITE_INTEGER = 1
 Module.SQLITE_FLOAT = 2
 Module.SQLITE_TEXT = 3
 Module.SQLITE_BLOB = 4
+Module.SQLITE_NULL = 5
 
 Module.SQLITE_IOCAP_ATOMIC = 0x00000001
 Module.SQLITE_IOCAP_ATOMIC512 = 0x00000002
@@ -136,3 +137,7 @@ Module.sqlite3_column_name = cwrap('sqlite3_column_name', 'string', ['number', '
 })
 
 Module.sqlite3_interrupt = cwrap('sqlite3_interrupt', 'null', ['number'])
+
+return Module;
+
+}
