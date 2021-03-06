@@ -1,5 +1,8 @@
 import initializeSQL from '../../../build/os'
 
+const MAX_JUMP_BYTES = 64 * 1000
+const MAX_READ_AHEAD = 64 * 1000
+
 export const Module = initializeSQL({
     locateFile: path => require('url:../../../build/os.wasm'),
 })
@@ -10,6 +13,10 @@ export const runtimeInitialization = new Promise((resolve, reject) => {
 })
 
 export var temp
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
 
 Module.onRuntimeInitialized = async function () {
     const [resolve, reject] = _runtimeInitializationCallbacks
@@ -52,26 +59,34 @@ async function readDataBuffer(file, pos, result) {
             return
         }
     }
-    if (!file.reader || pos < file.offset || pos - file.offset > 10 * 1000) {
+    if (!file.reader || pos < file.offset || pos - file.offset > MAX_JUMP_BYTES) {
         // otherwise we need to cancel the existing reader
         // and start from a new position
         if (file.reader) file.reader.cancel()
         file.offset = pos
         file.follow = pos
         console.log('fetching', file.offset)
-        const res = await fetch(file.url, {
-            headers: {
-                'content-type': 'application/octet-stream',
-                range: 'bytes=' + file.offset + '-' + (file.size - 1),
-            },
-        })
+        let res
+
+        for (let i = 0; i < 10; i++) {
+            res = await fetch(file.url, {
+                headers: {
+                    // 'content-type': 'application/octet-stream',
+                    range: 'bytes=' + file.offset + '-' + (file.size - 1),
+                },
+            })
+            if (res.status === 200 || res.status === 206) break
+            console.log(res)
+            await delay(2000 + 1000 * Math.pow(2, Math.random() + i))
+        }
+
         file.reader = res.body.getReader()
         const processChunk = ({ done, value }) => {
             if (done) {
                 file.reader = null
                 return
             }
-            if (file.offset - file.follow > 10000) {
+            if (file.offset - file.follow > MAX_READ_AHEAD) {
                 console.log('we are too far ahead, cancelling...')
                 file.reader.cancel()
             }
@@ -119,8 +134,13 @@ Module.jsOpen = async function (pVfs, zName, pFile, flags, pOutFlags) {
 }
 
 Module.jsRead = async function (pFile, zBuf, iAmt, iOfst) {
-    await readDataBuffer(files[pFile], iOfst, Module.HEAPU8.subarray(zBuf, zBuf + iAmt))
-    return 0
+    try {
+        await readDataBuffer(files[pFile], iOfst, Module.HEAPU8.subarray(zBuf, zBuf + iAmt))
+        return 0
+    } catch (err) {
+        console.warn(err)
+        return Module.SQLITE_IOERR
+    }
 }
 Module.jsAccess = async function (pVfs, zPath, flags, pResOut) {
     console.log(
@@ -139,8 +159,9 @@ Module.jsFileSize = async function (pFile, pSize) {
     const res = await fetch(file.url, {
         method: 'HEAD',
     })
-    if (res.status !== 200) return 1
+    if (res.status !== 200) return Module.SQLITE_CANTOPEN
     const size = parseInt(res.headers.get('content-length'))
+    if (isNaN(size)) return Module.SQLITE_CANTOPEN
     file.size = size
     Module.setValue(pSize, size, 'i64')
     // console.log('File Size', url, size)

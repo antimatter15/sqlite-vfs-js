@@ -77,9 +77,9 @@ function App() {
                     setError(null)
                     const newUrl =
                         '?db=' + encodeURIComponent(dbUrl) + '&query=' + encodeURIComponent(query)
-                    if (!location.search) {
+                    if (!location.search || location.search === newUrl) {
                         history.replaceState(result, '', newUrl)
-                    } else if (location.search !== newUrl) {
+                    } else {
                         history.pushState(result, '', newUrl)
                     }
                 },
@@ -187,7 +187,7 @@ function App() {
                                                         encodeURIComponent(dbUrl) +
                                                         '&query=' +
                                                         encodeURIComponent(
-                                                            'SELECT * FROM ' + row[j]
+                                                            'SELECT * FROM "' + row[j] + '"'
                                                         )
                                                     }
                                                 >
