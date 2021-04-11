@@ -1,4 +1,7 @@
+import { RootAPI } from 'ipfs-core-types'
 import initializeSQL from '../../../build/os'
+
+importScripts('https://unpkg.com/ipfs@0.54.4/dist/index.min.js')
 
 const MAX_JUMP_BYTES = 64 * 1000
 const MAX_READ_AHEAD = 64 * 1000
@@ -30,13 +33,61 @@ Module.onRuntimeInitialized = async function () {
     }
 }
 
-var files = {}
+var files: { [key: string]: FileHandle } = {}
 let startTime = Date.now()
 
-async function readDataBuffer(file, pos, result) {
+async function readDataBuffer(file: FileHandle, pos: number, result: Uint8Array) {
+    if (file.url.startsWith('/ipfs/')) {
+        return readDataBufferIPFS(file, pos, result)
+    } else {
+        return readDataBufferHTTP(file, pos, result)
+    }
+}
+
+var ipfsNodePromise: ReturnType<typeof Ipfs.create>
+
+type FileHandle = {
+    url: string
+    size: number
+}
+
+type HTTPFileHandle = FileHandle & {
+    chunks?: any[]
+    reader?: any
+    offset?: number
+    follow?: number
+    hooks?: Function[]
+}
+
+async function readDataBufferIPFS(file: FileHandle, pos: number, result: Uint8Array) {
+    if (!ipfsNodePromise) ipfsNodePromise = Ipfs.create()
+    const node = await ipfsNodePromise
+
+    const stream = node.cat(file.url, {
+        offset: pos,
+        length: result.length,
+    })
+
+    let index = 0
+    for await (const chunk of stream) {
+        result.set(chunk, index)
+        index += chunk.length
+    }
+}
+
+async function readDataBufferHTTP(file: HTTPFileHandle, pos: number, result: Uint8Array) {
     // if (amount === 0) return new Uint8Array(0)
     if (result.length === 0) return
+
     let amount = result.length
+
+    if (!file.chunks) {
+        file.chunks = []
+        file.reader = null
+        file.offset = 0
+        file.follow = 0
+        file.hooks = []
+    }
 
     if (pos > file.follow && pos < file.offset) file.follow = pos
     // for existing chunks
@@ -109,6 +160,23 @@ async function readDataBuffer(file, pos, result) {
     await readDataBuffer(file, pos, result)
 }
 
+async function getFileSize(file: FileHandle): Promise<number> {
+    if (file.url.startsWith('/ipfs/')) {
+        if (!ipfsNodePromise) ipfsNodePromise = Ipfs.create()
+        const node = await ipfsNodePromise
+        console.log(node)
+        const statObj = await node.files.stat(file.url, { size: true })
+        return statObj.size
+    } else {
+        const res = await fetch(file.url, {
+            method: 'HEAD',
+        })
+        if (res.status !== 200) return NaN
+        const size = parseInt(res.headers.get('content-length'))
+        return size
+    }
+}
+
 Module.jsOpen = async function (pVfs, zName, pFile, flags, pOutFlags) {
     const fileName = Module.UTF8ToString(zName)
     console.log('open', pVfs, fileName, pFile, flags, pOutFlags)
@@ -123,11 +191,7 @@ Module.jsOpen = async function (pVfs, zName, pFile, flags, pOutFlags) {
 
     files[pFile] = {
         url: fileName,
-        chunks: [],
-        reader: null,
-        offset: 0,
-        follow: 0,
-        hooks: [],
+        size: null,
     }
 
     return 0
@@ -153,14 +217,12 @@ Module.jsAccess = async function (pVfs, zPath, flags, pResOut) {
     Module.setValue(pResOut, 0, 'i32')
     return 0
 }
+
 Module.jsFileSize = async function (pFile, pSize) {
     console.log('jsFileSize', pFile, Module.getValue(pSize, 'i32'))
     const file = files[pFile]
-    const res = await fetch(file.url, {
-        method: 'HEAD',
-    })
-    if (res.status !== 200) return Module.SQLITE_CANTOPEN
-    const size = parseInt(res.headers.get('content-length'))
+    const size = await getFileSize(file)
+
     if (isNaN(size)) return Module.SQLITE_CANTOPEN
     file.size = size
     Module.setValue(pSize, size, 'i64')

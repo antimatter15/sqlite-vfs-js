@@ -9,6 +9,9 @@ import 'nprogress/nprogress.css'
 import './styles.less'
 import { abort } from 'process'
 
+const defaultDbUrl = '/ipfs/QmTJnRuyqzZDCNTu5GDgRuD17jsTpnZsFAxHJ4N7LDQtYR'
+// const defaultDbUrl = 'https://datasette.s3.us-west-001.backblazeb2.com/covid.db'
+
 const worker = new Worker(new URL('./worker/index', import.meta.url))
 
 function makeRPC(client: (path: string[], args: any[]) => any) {
@@ -62,8 +65,7 @@ function App() {
     const ref = React.useRef<HTMLDivElement>()
 
     const url = new URL(location.href)
-    const dbUrl =
-        url.searchParams.get('db') || 'https://datasette.s3.us-west-001.backblazeb2.com/covid.db'
+    const dbUrl = url.searchParams.get('db') || defaultDbUrl
 
     React.useEffect(() => {
         const run = () => {

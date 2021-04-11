@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "codemirror": "^5.59.4",
+    "ipfs-core-types": "^0.3.1",
     "normalize.css": "^8.0.1",
     "nprogress": "^0.2.0",
     "react": "^17.0.1",
