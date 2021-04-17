@@ -1,5 +1,5 @@
-SQLITE_AMALGAMATION = sqlite-amalgamation-3340100
-SQLITE_AMALGAMATION_ZIP_URL = https://sqlite.org/2021/sqlite-amalgamation-3340100.zip
+SQLITE_AMALGAMATION = sqlite-amalgamation-3350400
+SQLITE_AMALGAMATION_ZIP_URL = https://sqlite.org/2021/sqlite-amalgamation-3350400.zip
 
 
 ## cache
@@ -78,7 +78,8 @@ SQLITE_FLAGS = \
 	-DSQLITE_ENABLE_JSON1 \
 	-DSQLITE_ENABLE_STAT4 \
 	-DSQLITE_ENABLE_FTS4 \
-	-DSQLITE_ENABLE_FTS5
+	-DSQLITE_ENABLE_FTS5 \
+	-DSQLITE_ENABLE_MATH_FUNCTIONS
 
 DEPS = \
 	build \
