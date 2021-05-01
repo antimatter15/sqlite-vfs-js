@@ -17,7 +17,7 @@ export async function open(file = ':memory:') {
     if (open_result !== Module.SQLITE_OK) throw new Error(Module.sqlite3_errmsg(db))
 }
 
-export async function exec(sql) {
+export async function exec(sql: string) {
     if (!db) {
         await open()
     }
@@ -65,6 +65,7 @@ export async function exec(sql) {
         return {
             cols: col_names,
             rows: rows,
+            query: sql,
         }
     } finally {
         handle_error(await Module.sqlite3_finalize(res))

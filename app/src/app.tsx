@@ -4,13 +4,14 @@ import CodeMirror from 'codemirror'
 import NProgress from 'nprogress'
 import 'normalize.css/normalize.css'
 import 'codemirror/mode/sql/sql'
+import 'codemirror/addon/comment/comment'
 import 'codemirror/lib/codemirror.css'
 import 'nprogress/nprogress.css'
 import './styles.less'
 import { abort } from 'process'
 
-const defaultDbUrl = '/ipfs/QmTJnRuyqzZDCNTu5GDgRuD17jsTpnZsFAxHJ4N7LDQtYR'
-// const defaultDbUrl = 'https://datasette.s3.us-west-001.backblazeb2.com/covid.db'
+// const defaultDbUrl = '/ipfs/QmTJnRuyqzZDCNTu5GDgRuD17jsTpnZsFAxHJ4N7LDQtYR'
+const defaultDbUrl = 'https://datasette.s3.us-west-001.backblazeb2.com/covid.db'
 
 const worker = new Worker(new URL('./worker/index', import.meta.url))
 
@@ -47,9 +48,9 @@ worker.onmessage = e => {
             resolve(msg.result)
         }
     } else {
-        if (msg.event === 'RUNTIME_INIT') {
-            NProgress.done()
-        }
+        // if (msg.event === 'RUNTIME_INIT') {
+        //     NProgress.done()
+        // }
         console.log(msg)
     }
 }
@@ -58,9 +59,23 @@ console.log(worker)
 
 window['SQL'] = SQL
 
+function Link({ children, query }) {
+    const url = new URL(location.href)
+    const originalQuery = url.searchParams.get('query')
+    url.searchParams.set('query', query)
+    return (
+        <a href={url.toString()} className={originalQuery === query ? 'active' : ''}>
+            {children}
+        </a>
+    )
+}
+
+const DEFAULT_QUERY = `SELECT * FROM sqlite_master where type = 'table'\n\n-- Ctrl-Enter to Run. \n-- Ctrl-. to interrupt query`
+
 function App() {
     const [error, setError] = React.useState(null)
     const [result, setResult] = React.useState(null)
+    const [schema, setSchema] = React.useState(null)
 
     const ref = React.useRef<HTMLDivElement>()
 
@@ -75,8 +90,7 @@ function App() {
             SQL.exec(query).then(
                 result => {
                     NProgress.done()
-                    setResult(result)
-                    setError(null)
+
                     const newUrl =
                         '?db=' + encodeURIComponent(dbUrl) + '&query=' + encodeURIComponent(query)
                     if (!location.search || location.search === newUrl) {
@@ -84,6 +98,8 @@ function App() {
                     } else {
                         history.pushState(result, '', newUrl)
                     }
+                    setResult(result)
+                    setError(null)
                 },
                 err => {
                     console.error(err)
@@ -98,6 +114,19 @@ function App() {
             console.log('abork')
             SQL.abort()
         }
+        const startup = async () => {
+            await SQL.open(dbUrl)
+            const schema = await SQL.exec(`
+                SELECT DISTINCT m.name as tbl, ii.name AS col
+                FROM sqlite_master AS m,
+                       pragma_index_list(m.name) AS il,
+                       pragma_index_info(il.name) AS ii
+                WHERE m.type = 'table'
+            `)
+            console.log(schema)
+            setSchema(schema)
+            run()
+        }
 
         const cm = CodeMirror(ref.current, {
             mode: 'text/x-sql',
@@ -109,8 +138,12 @@ function App() {
                 'Shift-Enter': run,
                 'Cmd-.': abort,
                 'Ctrl-.': abort,
+                'Cmd-/': editor => editor.execCommand('toggleComment'),
+                'Ctrl-/': editor => editor.execCommand('toggleComment'),
             },
         })
+        ref.current['cm'] = cm
+        ref.current['run'] = run
 
         const restoreState = () => {
             const url = new URL(location.href)
@@ -120,22 +153,14 @@ function App() {
         }
 
         if (!url.searchParams.get('query')) {
-            cm.setValue(
-                'SELECT * FROM sqlite_master\n\n-- Ctrl-Enter to Run. \n-- Ctrl-. to interrupt query'
-            )
+            cm.setValue(DEFAULT_QUERY)
         }
         NProgress.start()
-        SQL.open(dbUrl).then(
-            () => {
-                // NProgress.done()
-                run()
-            },
-            err => {
-                console.error(err)
-                NProgress.done()
-                setError(err.toString())
-            }
-        )
+        startup().catch(err => {
+            console.error(err)
+            NProgress.done()
+            setError(err.toString())
+        })
 
         restoreState()
 
@@ -165,8 +190,18 @@ function App() {
         }
     }, [])
 
+    const tableName =
+        schema &&
+        result &&
+        result.query &&
+        schema.rows.map(([t]) => t).find(t => result.query.includes(`"${t}"`))
     return (
         <div className="main">
+            <div className="header">
+                <h1>
+                    <Link query={DEFAULT_QUERY}>JS SQLite VFS</Link>
+                </h1>
+            </div>
             <div ref={ref} />
             {error && <div className="error">{error}</div>}
             <div className="output">
@@ -175,7 +210,39 @@ function App() {
                         <tbody>
                             <tr>
                                 {result.cols.map((col, i) => (
-                                    <th key={i}>{col}</th>
+                                    <th key={i}>
+                                        <div className="column">
+                                            <div className="name">{col}</div>
+                                            <div className="actions">
+                                                {schema &&
+                                                    result &&
+                                                    result.query &&
+                                                    schema.rows.some(
+                                                        ([t, c]) =>
+                                                            c === col &&
+                                                            result.query.includes(`"${t}"`)
+                                                    ) && (
+                                                        <>
+                                                            <Link
+                                                                query={`SELECT * FROM "${tableName}" ORDER BY "${col}" ASC`}
+                                                            >
+                                                                ▲
+                                                            </Link>
+                                                            <Link
+                                                                query={`SELECT * FROM "${tableName}" ORDER BY "${col}" DESC`}
+                                                            >
+                                                                ▼
+                                                            </Link>
+                                                            <Link
+                                                                query={`SELECT DISTINCT "${col}" FROM "${tableName}"`}
+                                                            >
+                                                                ☰
+                                                            </Link>
+                                                        </>
+                                                    )}
+                                            </div>
+                                        </div>
+                                    </th>
                                 ))}
                             </tr>
                             {result.rows.map((row, i) => (
@@ -183,18 +250,9 @@ function App() {
                                     {result.cols.map((col, j) => (
                                         <td key={j}>
                                             {col === 'tbl_name' ? (
-                                                <a
-                                                    href={
-                                                        '?db=' +
-                                                        encodeURIComponent(dbUrl) +
-                                                        '&query=' +
-                                                        encodeURIComponent(
-                                                            'SELECT * FROM "' + row[j] + '"'
-                                                        )
-                                                    }
-                                                >
+                                                <Link query={'SELECT * FROM "' + row[j] + '"'}>
                                                     {row[j]}
-                                                </a>
+                                                </Link>
                                             ) : (
                                                 row[j]
                                             )}

@@ -1,5 +1,5 @@
-SQLITE_AMALGAMATION = sqlite-amalgamation-3350400
-SQLITE_AMALGAMATION_ZIP_URL = https://sqlite.org/2021/sqlite-amalgamation-3350400.zip
+SQLITE_AMALGAMATION = sqlite-amalgamation-3350500
+SQLITE_AMALGAMATION_ZIP_URL = https://sqlite.org/2021/sqlite-amalgamation-3350500.zip
 
 
 ## cache

@@ -26,6 +26,7 @@ body {
 
 table {
     border-collapse: collapse;
+    min-width: 100%;
 }
 
 td,
@@ -35,9 +36,46 @@ th {
     white-space: pre-wrap;
 }
 
+h1 {
+    font-size: inherit;
+
+    margin: 0;
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+}
+
 th {
     position: sticky;
     top: 0;
-    background: #673ab7;
-    color: white;
+    background: #f7f7f7;
+    border: 0;
+    color: black;
+    font-weight: 600;
+    box-shadow: 0 1px 0px #ddd;
+    border-right: 1px solid #ddd;
+    text-align: left;
+}
+
+.column {
+    display: flex;
+    .name {
+        flex: 1;
+    }
+
+    .actions {
+        a {
+            text-decoration: none;
+            opacity: 0.2;
+            &.active {
+                opacity: 1;
+            }
+        }
+    }
+}
+.header {
+    background: #f7f7f7;
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
 }

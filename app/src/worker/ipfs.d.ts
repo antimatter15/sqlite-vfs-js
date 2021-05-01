@@ -2,7 +2,9 @@ import { RootAPI } from 'ipfs-core-types'
 
 declare global {
     const Ipfs: {
-        create(): Promise<
+        create(
+            config?: any
+        ): Promise<
             RootAPI & {
                 files: {
                     stat(
